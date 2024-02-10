@@ -1,6 +1,10 @@
 # Podcast Website Demo in Fronty
 
-This repository showcases a demo website for the **Talk Python To Me** podcast, implemented using **Fronty**. The purpose of this demo is to illustrate the capabilities of **Fronty** in building modern and responsive web applications. This is the **Django** implementation of the demo.
+This repository showcases a demo website for the **Talk Python To Me** podcast, implemented using **Fronty**. The purpose of this demo is to illustrate the capabilities of **Fronty** in building modern and responsive web applications.
+
+This is implemented using **Django** and **Fronty**. This repository contains **100% Python** code and no **HTML**, **CSS** or **JavaScript**. The entire website is built using **Python** and **Fronty**.
+
+## Let's see how it looks.
 
 - **Main website**: [https://talkpython.fm/](https://talkpython.fm/)
 - **Fronty implementation**: [https://fronty-talk-python.onrender.com/](https://fronty-talk-python.onrender.com/)
