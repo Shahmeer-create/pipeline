@@ -682,7 +682,8 @@ def not_found_page() -> html.Html:
             html.H1("404 Page Not Found!"),
             html.Text("This pages aren't implemented yet."),
             html.Anchor(
-                "go back?",
+                html.I().class_("fa fa-arrow-left"),
+                " go back?",
                 href="/",
             ),
         ).style(**{
