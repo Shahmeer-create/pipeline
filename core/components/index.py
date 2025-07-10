@@ -15,7 +15,7 @@ def index_page() -> html.Html:
                     html.Div(
                         html.Div(
                             html.Div(
-                                html.H1("Talk Python To Me"),
+                                html.H1("Great Python Application"),
                                 html.H3(
                                     "A podcast on Python and related technologies"),
                                 html.Element("hr").class_("intro-divider"),
