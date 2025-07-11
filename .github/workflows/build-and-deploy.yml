@@ -9,34 +9,37 @@ jobs:
   deploy:
     name: Deploy Django App to EC2
     runs-on: ubuntu-latest
+    env:
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_HOST: ${{ secrets.EC2_HOST }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Deploy to EC2 Server
+      - name: Debug: show target
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_HOST }} << 'EOF'
-            set -e
+          echo "Deploying to $EC2_USER@$EC2_HOST"
 
-            echo "📁 Navigating to app directory"
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" << 'EOF'
+            set -e
             cd /home/ec2-user/fronty-podcast-demo
 
             echo "📥 Pulling latest code"
             git pull origin main
 
-            echo "🐍 Activating virtual environment"
+            echo "🐍 Activating venv & installing deps"
             source venv/bin/activate
-
-            echo "📦 Installing dependencies"
             pip install -r requirements.txt
 
-            echo "🧱 Running migrations"
+            echo "🧱 Applying migrations"
             python manage.py migrate --noinput
 
             echo "🔄 Restarting Gunicorn"
@@ -45,5 +48,5 @@ jobs:
             echo "🔃 Reloading NGINX"
             sudo systemctl reload nginx
 
-            echo "✅ Deployment completed"
+            echo "✅ Deployment complete"
           EOF
