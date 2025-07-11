@@ -1,116 +1,49 @@
-name: Build and Deploy
+name: Django CI/CD Pipeline with Gunicorn & NGINX
 
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: Deploy Django App to EC2
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
-      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # Setup Python
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          python-version: '3.11'
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # Install dependencies
-      - name: Install Python dependencies
+      - name: Deploy to EC2 Server
         run: |
-          python -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
 
-      # Setup OWASP Dependency Check
-      - name: Setup OWASP Dependency Check
-        run: |
-          echo "Downloading OWASP Dependency Check..."
-          VERSION="8.4.0"
-          wget -q "https://github.com/jeremylong/DependencyCheck/releases/download/v${VERSION}/dependency-check-${VERSION}-release.zip"
-          unzip -q "dependency-check-${VERSION}-release.zip"
-          chmod +x dependency-check/bin/dependency-check.sh
+            echo "📁 Navigating to app directory"
+            cd /home/ec2-user/fronty-podcast-demo
 
-      # Run OWASP Dependency Check
-      - name: Run OWASP Dependency Check
-        run: |
-          mkdir -p dependency-reports
-          ./dependency-check/bin/dependency-check.sh \
-            --scan "." \
-            --format "HTML" \
-            --out "./dependency-reports" \
-            --project "python-django-app" \
-            --failOnCVSS 8 \
-            --exclude "**/venv/**" || echo "Dependency Check completed"
+            echo "📥 Pulling latest code"
+            git pull origin main
 
-      # Upload Dependency Check Report
-      - name: Upload Dependency Check Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dependency-check-report
-          path: dependency-reports/dependency-check-report.html
-          retention-days: 30
-
-      # Run SonarQube analysis
-      - name: SonarQube Scan
-        uses: sonarsource/sonarqube-scan-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-      # Deploy to EC2 via SSH
-      - name: Deploy to EC2 (Gunicorn + Nginx)
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/ubuntu/fronty-podcast-demo
-            git pull origin master
+            echo "🐍 Activating virtual environment"
             source venv/bin/activate
+
+            echo "📦 Installing dependencies"
             pip install -r requirements.txt
-            python manage.py migrate
-            python manage.py collectstatic --noinput
-            sudo systemctl restart fronty.service
+
+            echo "🧱 Running migrations"
+            python manage.py migrate --noinput
+
+            echo "🔄 Restarting Gunicorn"
+            sudo systemctl restart gunicorn
+
+            echo "🔃 Reloading NGINX"
             sudo systemctl reload nginx
-            echo "Deployment complete!"
 
-      # Wait before ZAP scan
-      - name: Wait for site to load
-        run: sleep 30
-
-      # OWASP ZAP Security Scan
-      - name: Security Scan with OWASP ZAP
-        run: |
-          sudo apt update
-          sudo apt install snapd -y
-          sudo snap install zaproxy --classic
-          sleep 10
-          mkdir -p ${{ github.workspace }}/security-reports
-          zaproxy -cmd \
-            -quickurl https://python.yasirbhati.site/ \
-            -quickprogress \
-            -quickout ${{ github.workspace }}/security-reports/zap-security-report.html \
-            -config connection.timeoutInSecs=120
-
-      # Upload ZAP security report
-      - name: Upload Security Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: zap-security-report
-          path: ${{ github.workspace }}/security-reports/zap-security-report.html
-          retention-days: 30
+            echo "✅ Deployment completed"
+          EOF
